@@ -1,0 +1,3 @@
+streamlit
+git+https://github.com/ersilia-os/ersilia-client.git
+rdkit

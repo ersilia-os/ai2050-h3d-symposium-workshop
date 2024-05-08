@@ -1,0 +1,8 @@
+spec:
+  name: ai-intro-workshop
+  services:
+  - dockerfile_path: Dockerfile
+    git:
+      branch: main
+      repo_clone_url: https://github.com/ersilia-os/ai-intro-workshop.git
+    name: ai-intro-workshop

@@ -1,0 +1,8 @@
+name: ai-intro-workshop
+services:
+- dockerfile_path: Dockerfile
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: ersilia-os/ai-intro-workshop
+  name: ai-intro-workshop
