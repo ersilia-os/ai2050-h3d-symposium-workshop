@@ -1,4 +1,5 @@
 from rdkit import Chem
+from rdkit.Chem import Draw
 
 
 def filter_valid_smiles(smiles_list):
@@ -6,4 +7,8 @@ def filter_valid_smiles(smiles_list):
 
 def draw_molecule(smiles):
     mol = Chem.MolFromSmiles(smiles)
-    return Chem.Draw.MolToImage(mol, size=(200, 200))
+    return Draw.MolToImage(mol, size=(200, 200))
+
+def draw_molecules_grid(smiles_list):
+    mols = [Chem.MolFromSmiles(i) for i in smiles_list]
+    return Draw.MolsToGridImage(mols)
