@@ -32,3 +32,10 @@ ersilia -v run -i "../data/mmv_pathogenbox.csv" -o "../data/eos2hbd_mmv_pathogen
 ersilia -v run -i "../data/mmv_pandemicbox.csv" -o "../data/eos2hbd_mmv_pandemicbox.csv"
 ersilia -v run -i "../data/mmv_ghbox.csv" -o "../data/eos2hbd_mmv_ghbox.csv"
 ersilia close
+
+ersilia serve eos5xng
+ersilia -v run -i "../data/mmv_malariabox.csv" -o "../data/eos5xng_mmv_malariabox.csv"
+ersilia -v run -i "../data/mmv_pathogenbox.csv" -o "../data/eos5xng_mmv_pathogenbox.csv"
+ersilia -v run -i "../data/mmv_pandemicbox.csv" -o "../data/eos5xng_mmv_pandemicbox.csv"
+ersilia -v run -i "../data/mmv_ghbox.csv" -o "../data/eos5xng_mmv_ghbox.csv"
+ersilia close
