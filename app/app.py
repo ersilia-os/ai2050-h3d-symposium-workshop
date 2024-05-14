@@ -1,17 +1,23 @@
 import os
 import sys
+import random
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import streamlit as st
+from sklearn import metrics
+
+import stylia
+
 from ersilia_client import ErsiliaClient
-import random
+
 
 root = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.abspath(os.path.join(root, "..", "data"))
 sys.path.append(root)
+data_dir = os.path.abspath(os.path.join(root, "..", "data"))
 
 from utils import filter_valid_smiles, draw_molecule, query_nvidia_generative_chemistry
-from utils import binarize_acinetobacter_data, train_acinetobacter_ml_model
+from utils import binarize_acinetobacter_data, train_acinetobacter_ml_model, train_final_acinetobacter_ml_model, predict_acinetobacter_ml_model
 
 st.set_page_config(layout="wide", page_title='H3D Symposium AI Workshop', page_icon=':microbe:', initial_sidebar_state='collapsed')
 
@@ -75,127 +81,204 @@ def load_acinetobacter_training_data():
     df["Mean"] = pd.to_numeric(df["Mean"])
     return df
 
+# display metrics and slider for activity cut-off
 dt = load_acinetobacter_training_data()
 cols = st.columns(5)
 cols[0].metric("Mean growth", round(dt["Mean"].mean(), 3))
 cols[1].metric("Standard deviation", round(dt["Mean"].std(), 3))
-activity_cutoff = cols[2].slider("Activity cutoff", min_value=0.1, max_value=2., value=1.)
+activity_cutoff = cols[2].slider("Activity cutoff", min_value=0.1, max_value=2., value=1., step=0.001, format="%.3f")
 dt = binarize_acinetobacter_data(dt, cutoff=activity_cutoff)
 cols[3].metric("Number of actives", sum(dt["Binary"]))
 cols[4].metric("Number of inactives", dt.shape[0] - sum(dt["Binary"]))
-st.write(dt)
 
+# display data and graph according to activity cut-off
+cols = st.columns([2,1])
+dt_ = dt[["SMILES", "Name", "Mean", "Binary"]]
+dt_.rename(columns={"Mean": "Mean growth (OD)"}, inplace=True)
+cols[0].write(dt_)
+fig, ax = plt.subplots()
+inactive = dt[dt["Binary"]==0]
+active = dt[dt["Binary"]==1]
+ax.scatter(inactive.index, inactive['Mean'], marker='o', color='blue', alpha=0.5, label='Inactive')
+ax.scatter(active.index, active['Mean'], marker='o', color='red', alpha=0.5, label='Active')
+ax.set_title('Growth Values', size=14)
+ax.set_xlabel('Molecule Index', size=12)
+ax.set_ylabel('Mean Growth', size=12)
+ax.legend(fontsize=12)
+#cols[1].pyplot(fig)
+dt_["Molecule index"] = dt_.index
+dt_["color"]=['Active' if x==1 else 'Inactive' for x in dt["Binary"]]
+dt_["Active"] = [dt_["Mean growth (OD)"].iloc[i] if dt_["Binary"].iloc[i] == 1 else None for i in range(len(dt_)) ]
+dt_["Inactive"] = [dt_["Mean growth (OD)"].iloc[i] if dt_["Binary"].iloc[i] == 0 else None for i in range(len(dt_)) ]
+cols[1].write("Mean Growth (OD) of A.baumannii")
+cols[1].scatter_chart(dt_, x="Molecule index", y=["Active", "Inactive"], color=['#FF0000', '#0000FF'], size=50)
+
+cols = st.columns(4)
 if 'train_ml_model_active' not in st.session_state:
     st.session_state['train_ml_model_active'] = False
 
 def toggle_train_ml_model_state():
     st.session_state['train_ml_model_active'] = not st.session_state['train_ml_model_active']
 
-if st.button('🤖 Train a machine learning model!', on_click=toggle_train_ml_model_state):
+if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_ml_model_state):
     if not st.session_state["train_ml_model_active"]:
         pass
     else:
-        st.session_state.model_results = train_acinetobacter_ml_model(dt)
-        st.success('Model trained!')
+        with st.spinner("Training the model..."):
+            st.session_state.model_results = train_acinetobacter_ml_model(dt)
+            cols[0].success('Model trained!')
 
 if st.session_state["train_ml_model_active"]:
-
     if "model_results" in st.session_state:
-        st.metric("AUROC", round(np.mean(st.session_state.model_results["aurocs"]), 3))
+        aurocs = st.session_state.model_results["aurocs"]
+        std_auroc = np.std(aurocs)
+        cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
+        tprs = []
+        mean_fpr = np.linspace(0,1,100)
+        for i in st.session_state.model_results["cv_data"]:
+            fpr, tpr, _ = metrics.roc_curve(i[0],i[1])
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            interp_tpr[0] = 0.0
+            tprs.append(interp_tpr)
+        mean_tpr = np.mean(tprs, axis=0)
+        mean_tpr[-1] = 1.0
+    tprs_df = pd.DataFrame({
+        'tpr_cv1': tprs[0],
+        'tpr_cv2': tprs[1],
+        'tpr_cv3': tprs[2],
+        'tpr_cv4': tprs[3],
+        'tpr_cv5': tprs[4],
+        'Mean TPR': mean_tpr,
+        'FPR': mean_fpr,
+        
+    })
 
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    st.pyplot(fig)
-
-    st.divider()
-
-    st.header("Library selection")
-
-    cols = st.columns(5)
-    selected_library = cols[0].radio("Select a screening library", list(library_filenames.keys()))
-    smiles_list = read_library(library_filenames[selected_library])
-
-    smiles_list = st.text_area("Enter molecules as SMILES strings", key="smiles", value=os.linesep.join(smiles_list)).split(os.linesep)
-    smiles_list = filter_valid_smiles(smiles_list)
-
-    cols[1].metric("Number of molecules", len(smiles_list))
-
-    library_molecules_list = [(i, smiles) for i, smiles in enumerate(smiles_list)]
-
-    # Get the total number of molecules
-    num_molecules = len(library_molecules_list)
-
-    # Calculate the number of chunks
-    num_chunks_of_3 = (num_molecules + 2) // 3
-
-    # Initialize the current chunk index
-    chunk_of_3_index = st.session_state.get('chunk_of_3_index', 0)
-
-    # Get the current chunk of molecules
-    start_index = chunk_of_3_index * 3
-    end_index = min(start_index + 3, num_molecules)
-    current_chunk_of_3 = library_molecules_list[start_index:end_index]
-
-    def draw_molecules_in_chunk_of_3(cols, current_chunk):
-        i = 0
-        for m in current_chunk:
-            cols[i+2].image(draw_molecule(m[1]), caption=f"Molecule {m[0]}")
-            i += 1
-
-    draw_molecules_in_chunk_of_3(cols, current_chunk_of_3)
-
-    # Add a more button
-    if cols[1].button("View more molecules"):
-        chunk_of_3_index = (chunk_of_3_index + 1) % num_chunks_of_3
-
-    # Update the session state
-    st.session_state['chunk_of_3_index'] = chunk_of_3_index
-
+    cols[1].write("ROC Curve")
+    cols[1].line_chart(data=tprs_df, x="FPR", y=["tpr_cv1","tpr_cv2","tpr_cv3","tpr_cv4","tpr_cv5","Mean TPR"], color=["#1D6996","#d3d3d3","#d3d3d3","#d3d3d3","#d3d3d3","#d3d3d3"], width=0, height=0, use_container_width=True)
+    X = st.session_state.model_results["X"]
+    y = st.session_state.model_results["y"]
+    X_ = [x[:2] for x in X]
+    LolP1 = [arr[0] for arr in X]
+    LolP2 = [arr[1] for arr in X]
+    lolp_df = pd.DataFrame({
+        'LolP1': LolP1,
+        'LolP2': LolP2,
+        'Binary': y,
+        'Color': ['#0000FF' if x==0 else  '#FF0000'for x in y]
+    })  
+    cols[2].write("2D representation of chemical space")
+    cols[2].scatter_chart(data=lolp_df, x="LolP1", y="LolP2", color="Color", size=50)
 
     # Initialize the session state if not already done
-    if 'hit_prioritization_active' not in st.session_state:
-        st.session_state['hit_prioritization_active'] = False
+    if 'final_model' not in st.session_state:
+        st.session_state['final_model'] = False
 
-    def toggle_hit_prioritization_state():
+    def toggle_final_model():
         # Toggle the state
-        st.session_state['hit_prioritization_active'] = not st.session_state['hit_prioritization_active']
-
-    # Button to toggle the state
-    if st.button('Proceed to hit prioritization / Refresh', on_click=toggle_hit_prioritization_state):
+        st.session_state['final_model'] = not st.session_state['final_model']
+# Button to toggle the state
+    if st.button('💾 Best cut-off selected & model trained!', on_click=toggle_final_model):
         pass
 
-
-    if st.session_state["hit_prioritization_active"]:
-
+    if st.session_state["final_model"]:
         st.divider()
+        st.header("Library selection")
 
-        st.header("Hit prioritization")
+        cols = st.columns(5)
+        selected_library = cols[0].radio("Select a screening library", list(library_filenames.keys()))
+        smiles_list = read_library(library_filenames[selected_library])
 
-        model_ids = st.multiselect("Browse models", list(model_titles.keys()), format_func=lambda x: model_titles[x], placeholder="Select one or more models from the Ersilia Model Hub")
+        smiles_list = st.text_area("Enter molecules as SMILES strings", key="smiles", value=os.linesep.join(smiles_list)).split(os.linesep)
+        smiles_list = filter_valid_smiles(smiles_list)
 
-        @st.cache_data
-        def run_predictive_models(model_ids, smiles_list):
-            #return pd.DataFrame({"SMILES": smiles_list})
-            results = {}
-            for model_id in model_ids:
-                client = clients[model_id]
-                result = client.run(smiles_list[:10])
-                results[model_id] = result
-            with st.status("Running Ersilia models..."):
+        cols[1].metric("Number of molecules", len(smiles_list))
+
+        library_molecules_list = [(i, smiles) for i, smiles in enumerate(smiles_list)]
+
+        # Get the total number of molecules
+        num_molecules = len(library_molecules_list)
+
+        # Calculate the number of chunks
+        num_chunks_of_3 = (num_molecules + 2) // 3
+
+        # Initialize the current chunk index
+        chunk_of_3_index = st.session_state.get('chunk_of_3_index', 0)
+
+        # Get the current chunk of molecules
+        start_index = chunk_of_3_index * 3
+        end_index = min(start_index + 3, num_molecules)
+        current_chunk_of_3 = library_molecules_list[start_index:end_index]
+
+        def draw_molecules_in_chunk_of_3(cols, current_chunk):
+            i = 0
+            for m in current_chunk:
+                cols[i+2].image(draw_molecule(m[1]), caption=f"Molecule {m[0]}")
+                i += 1
+
+        draw_molecules_in_chunk_of_3(cols, current_chunk_of_3)
+
+        # Add a more button
+        if cols[1].button("View more molecules"):
+            chunk_of_3_index = (chunk_of_3_index + 1) % num_chunks_of_3
+
+        # Update the session state
+        st.session_state['chunk_of_3_index'] = chunk_of_3_index
+
+
+        # Initialize the session state if not already done
+        if 'hit_prioritization_active' not in st.session_state:
+            st.session_state['hit_prioritization_active'] = False
+
+        def toggle_hit_prioritization_state():
+            # Toggle the state
+            st.session_state['hit_prioritization_active'] = not st.session_state['hit_prioritization_active']
+
+        # Button to toggle the state
+        if st.button('♻️ Proceed to hit prioritization / Refresh', on_click=toggle_hit_prioritization_state):
+            pass
+
+
+        if st.session_state["hit_prioritization_active"]:
+
+            st.divider()
+
+            st.header("Hit prioritization")
+            cont = st.container(border=None)
+            cont.write("In this workshop we have pre-selected the models we will use for prioritization. Feel free to browse the Ersilia Model Hub to discover more AI/ML tools!")
+            cols = st.columns(3)
+            cols[0].markdown(f"""
+            <div style="background-color: lightblue; padding: 10px; border-radius: 5px;">
+                <h5>🦠 A. baumannii Bioactivity</h5>
+                <p>This is the model we just trained on a dataset of ~7500 molecules described in Liu et al, 2023 to elucidate whether a molecule is active against A.baumannii.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            cols[1].markdown(f"""
+            <div style="background-color: lightblue; padding: 10px; border-radius: 5px;">
+                <h5>🫀 hERG Inhibition</h5>
+                <p>This model is described in Jiménez-Luna et al, 2021. It was trained on a publicly available dataset with the goal of predicting hERG-mediated cardiotoxicity.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            cols[2].markdown(f"""
+            <div style="background-color: lightblue; padding: 10px; border-radius: 5px;">
+                <h5>🧪 Synthetic Accessibility</h5>
+                <p>The synthetic accessibility score was developed by Ertl & Schuffenhauer, 2009. It estimates if a molecule will be accessible for synthesis in the laboratory.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            st.write("")
+
+            @st.cache_data
+            def run_predictive_models(model_ids, smiles_list):
                 results = {}
-                for i, model_id in enumerate(model_ids):
-                    st.write("Model {0}: {1}".format(model_id, model_titles[model_id]))
+                for  model_id in model_ids:
                     client = clients[model_id]
                     result = client.run(smiles_list)
                     results[model_id] = result
-            df = pd.DataFrame({"SMILES": smiles_list})
-            for model_id, result in results.items():
-                columns = list(result.columns)
-                columns = [column for column in columns if column != "input"]
-                df = pd.concat([df, result[columns]], axis=1)
-            return df
-        
-        if len(model_ids) > 0:
+                df = pd.DataFrame({"SMILES": smiles_list})
+                for model_id, result in results.items():
+                    columns = list(result.columns)
+                    columns = [column for column in columns if column != "input"]
+                    df = pd.concat([df, result[columns]], axis=1)
+                return df
 
             dp = None
 
@@ -212,7 +295,15 @@ if st.session_state["train_ml_model_active"]:
                 pass
 
             if st.session_state["model_predictions_active"]: 
-                dp = run_predictive_models(model_ids, smiles_list)
+                with st.spinner("Running models..."):
+                    dp = run_predictive_models(["eos9ei3", "eos43at"], smiles_list)
+                    output_cols = {"outcome":"SA Score", "pic50": "hERG"}
+                    dp.rename(columns=output_cols, inplace=True)
+                    red = st.session_state.model_results["reducer"]
+                    mdl = st.session_state.model_results["model"]
+                    abau_preds = predict_acinetobacter_ml_model(smiles_list, red, mdl)
+                    dp["Abaumannii"] = abau_preds
+        
 
             start_hit_expansion = False
             if dp is not None:
@@ -228,7 +319,7 @@ if st.session_state["train_ml_model_active"]:
                     st.session_state['hit_expansion_active'] = not st.session_state['hit_expansion_active']
 
                 # Button to toggle the state
-                if st.button("Proceed to hit expansion / Refresh", on_click=toggle_hit_expansion_state):
+                if st.button("♻️ Proceed to hit expansion / Refresh", on_click=toggle_hit_expansion_state):
                     pass
 
                 if st.session_state["hit_expansion_active"]: 
@@ -247,7 +338,7 @@ if st.session_state["train_ml_model_active"]:
                     minimum_similarity = cols[2].slider("Minimum similarity", min_value=0.0, max_value=1.0, value=0.85)
 
                     def run_generative_models(seed_smiles, opt_property, num_molecules, minimize, minimum_similarity):
-                        return sorted([(random.choice(smiles_list), random.randint(0,100)/100) for _ in range(num_molecules)], key=lambda x: x[1], reverse=minimize)
+                        #return sorted([(random.choice(smiles_list), random.randint(0,100)/100) for _ in range(num_molecules)], key=lambda x: x[1], reverse=minimize)
                         return query_nvidia_generative_chemistry(smiles=seed_smiles, property=opt_property, minimize=minimize, num_molecules=num_molecules, minimum_similarity=minimum_similarity)
 
                     # Initialize the session state if not already done
@@ -267,7 +358,6 @@ if st.session_state["train_ml_model_active"]:
                     if st.session_state["generate_molecules_active"]:
                         dg = run_generative_models(seed_smiles=seed_smiles, opt_property=opt_property, num_molecules=num_molecules, minimize=minimize, minimum_similarity=minimum_similarity)
                         
-                    
                     if dg is not None:
                         dg = pd.DataFrame(dg, columns=["SMILES", opt_property])
                         st.write("Virtual generated molecules")

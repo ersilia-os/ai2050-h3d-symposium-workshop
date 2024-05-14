@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from eosce.models import ErsiliaCompoundEmbeddings
 from lol import LOL
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 import numpy as np
 import requests
 import json
@@ -98,7 +98,36 @@ def train_acinetobacter_ml_model(binary_data):
         "reducer": reducer,
         "model": model,
         "aurocs": aurocs,
-        "cv_data": cv_data
+        "cv_data": cv_data,
+        "X": X,
+        "y": y
+    }
+    print(len(X))
+    print(len(y))
+    print(X[0])
+    print("Done")
+    return results
+
+def train_final_acinetobacter_ml_model(binary_data):
+    embedder = ErsiliaCompoundEmbeddings()
+    X = embedder.transform(binary_data["SMILES"])
+    y = np.array(binary_data["Binary"])
+    reducer = LOL(100)
+    model = RandomForestClassifier()
+    X = reducer.fit_transform(X, y)
+    model.fit(X, y)
+    results = {
+        "reducer": reducer,
+        "model": model,
     }
     print("Done")
     return results
+
+def predict_acinetobacter_ml_model(smiles_list, reducer, model):
+    embedder = ErsiliaCompoundEmbeddings()
+    print("Calculating embeddings")
+    X = embedder.transform(smiles_list)
+    print("Embeddings calculated")
+    X = reducer.transform(X)
+    y_pred = model.predict_proba(X)[:,1]
+    return y_pred
