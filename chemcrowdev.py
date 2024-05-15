@@ -9,9 +9,9 @@ load_dotenv()
 
 seed_smiles = "CCOC(=O)c1cnc2c(C)cc(C)cc2c1Nc1ccc(OC)c(OC)c1"
 prompt = """
- Synthesize this molecule, and give me the steps: {0}
- Give me the IUPAC name, its functional groups, and its likely properties. Also, tell me what chemotypes are present in this molecule.
- Explain this molecule so that a chemist can understand it.
+ Check if this molecule is available for purchase: {0}
+ If not available, try to find similar molecules for purchase. In that case, give me a list of 5 similar molecules that are available for purchase.
+ Give me the price of purchasable molecules
 """.format(seed_smiles)
 
 
