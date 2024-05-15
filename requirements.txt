@@ -4,3 +4,6 @@ rdkit
 python-dotenv
 eosce
 lolP
+openai
+scikit-learn
+altair

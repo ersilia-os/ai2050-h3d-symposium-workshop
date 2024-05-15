@@ -2,6 +2,7 @@ import os
 from rdkit import Chem
 from rdkit.Chem import Draw
 from dotenv import load_dotenv
+from openai import OpenAI
 from eosce.models import ErsiliaCompoundEmbeddings
 from lol import LOL
 from sklearn.model_selection import train_test_split
@@ -16,20 +17,38 @@ root = os.path.dirname(os.path.abspath(__file__))
 
 load_dotenv(os.path.join(root, "..", ".env"))
 
-
 def filter_valid_smiles(smiles_list):
     return [smiles for smiles in smiles_list if Chem.MolFromSmiles(smiles) is not None]
-
 
 def draw_molecule(smiles):
     mol = Chem.MolFromSmiles(smiles)
     return Draw.MolToImage(mol, size=(200, 200))
 
-
 def draw_molecules_grid(smiles_list):
     mols = [Chem.MolFromSmiles(i) for i in smiles_list]
     return Draw.MolsToGridImage(mols)
 
+def ask_question_about_abaumannii(query):
+
+    model="gpt-3.5-turbo"
+
+    system_content = """
+    You are a biomedicial researcher. You give very concise answers, between 50 and 100 words.
+    The user will ask a question related to a pathogen. If the question is not related to a pathogen, you should not respond and, rather, you should ask the user to input another question.
+    Always greet the user. Welcome them to the H3D Symposium in Livingstone, Zambia.
+    In addition, you should repeat user's question explicitly in a concise way and then answer it.
+    """
+    
+    user_content = query
+
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": user_content}
+    ]
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(model = model, messages = messages)
+
+    return response.choices[0].message.content
 
 def query_nvidia_generative_chemistry(smiles, property="logP", minimize=False, minimum_similarity=0.85, num_molecules=30):
 
@@ -101,24 +120,6 @@ def train_acinetobacter_ml_model(binary_data):
         "cv_data": cv_data,
         "X": X,
         "y": y
-    }
-    print(len(X))
-    print(len(y))
-    print(X[0])
-    print("Done")
-    return results
-
-def train_final_acinetobacter_ml_model(binary_data):
-    embedder = ErsiliaCompoundEmbeddings()
-    X = embedder.transform(binary_data["SMILES"])
-    y = np.array(binary_data["Binary"])
-    reducer = LOL(100)
-    model = RandomForestClassifier()
-    X = reducer.fit_transform(X, y)
-    model.fit(X, y)
-    results = {
-        "reducer": reducer,
-        "model": model,
     }
     print("Done")
     return results
