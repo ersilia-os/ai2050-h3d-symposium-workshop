@@ -140,6 +140,12 @@ class ChemSpaceSearch(object):
     def run(self, query):
         data = self._run(query, request_type="exact")
         if data is not None:
-            return {"result": data, "request_type": "exact"}
+            return data
         data = self._run(query, request_type="sim")
         return data
+    
+    
+if __name__ == "__main__":
+    chemspace = ChemSpaceSearch(chemspace_api_key=CHEMSPACE_API_KEY)
+    data = chemspace.run("CC(=O)Oc1ccccc1C(=O)O")
+    print(data)
