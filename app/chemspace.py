@@ -24,7 +24,7 @@ class ChemSpaceSearch(object):
         CSMS: Make-On-Demand Screening Compounds
     """
 
-    def __init__(self, chemspace_api_key: str = None):
+    def __init__(self, chemspace_api_key=CHEMSPACE_API_KEY):
         self.chemspace_api_key = chemspace_api_key
         self._renew_token()
 
@@ -143,9 +143,3 @@ class ChemSpaceSearch(object):
             return data
         data = self._run(query, request_type="sim")
         return data
-    
-    
-if __name__ == "__main__":
-    chemspace = ChemSpaceSearch(chemspace_api_key=CHEMSPACE_API_KEY)
-    data = chemspace.run("CC(=O)Oc1ccccc1C(=O)O")
-    print(data)

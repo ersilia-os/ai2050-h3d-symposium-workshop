@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import altair as alt
 from sklearn import metrics
+import umap
 
-import stylia
 
 from ersilia_client import ErsiliaClient
 
@@ -20,9 +20,12 @@ data_dir = os.path.abspath(os.path.join(root, "..", "data"))
 from utils import filter_valid_smiles, draw_molecule
 from utils import query_nvidia_generative_chemistry, ask_question_about_abaumannii
 from utils import binarize_acinetobacter_data, train_acinetobacter_ml_model, predict_acinetobacter_ml_model
-from info import about, model_urls, library_filenames, q1, q2, q3
+from info import about, model_urls_do, model_urls_aws, library_filenames, q1, q2, q3
 from info import abaumannii_bioactivity, herg_inhibition, synthetic_accessibility
+from plots import plot_act_inact, plot_roc_curve, plot_lolp, plot_umap
+from chemspace import ChemSpaceSearch
 
+model_urls=model_urls_aws
 
 st.set_page_config(layout="wide", page_title='H3D Symposium AI Workshop', page_icon=':microbe:', initial_sidebar_state='collapsed')
 
@@ -91,15 +94,8 @@ cols = st.columns([2,1])
 dt_ = dt[["SMILES", "Name", "Mean", "Binary"]]
 cols[0].write(dt_)
 dt_["Molecule index"] = dt_.index
-color_mapping = alt.Color('Binary:N', scale=alt.Scale(domain=[1, 0], range=['#FF0000', '#0000FF']), legend=alt.Legend(title='Molecule Activity', labelExpr="if(datum.label == '1', 'Active', 'Inactive')"))
-scatter_plot = alt.Chart(dt_).mark_circle(size=60).encode(
-    x=alt.X('Molecule index:Q', title='Molecule Index'),
-    y=alt.Y('Mean:Q', title='Mean growth (OD)'),
-    color=color_mapping
-).properties(
-    title='Molecule activity for A.baumannii'
-)
-cols[1].altair_chart(scatter_plot, use_container_width=True)
+fig = plot_act_inact(dt_)
+cols[1].altair_chart(fig, use_container_width=True)
 
 # Button to train a model & see results
 cols = st.columns(4)
@@ -114,66 +110,41 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
     else:
         with st.spinner("Training the model..."):
             st.session_state.model_results = train_acinetobacter_ml_model(dt)
+            if st.session_state["train_ml_model_active"]:
+                if "model_results" in st.session_state:
+                    aurocs = st.session_state.model_results["aurocs"]
+                    std_auroc = np.std(aurocs)
+                    
+                    tprs = []
+                    mean_fpr = np.linspace(0,1,100)
+                    for i in st.session_state.model_results["cv_data"]:
+                        fpr, tpr, _ = metrics.roc_curve(i[0],i[1])
+                        interp_tpr = np.interp(mean_fpr, fpr, tpr)
+                        interp_tpr[0] = 0.0
+                        tprs.append(interp_tpr)
+                    mean_tpr = np.mean(tprs, axis=0)
+                    mean_tpr[-1] = 1.0
+                tprs_df = pd.DataFrame({
+                    'tpr_cv1': tprs[0],
+                    'tpr_cv2': tprs[1],
+                    'tpr_cv3': tprs[2],
+                    'tpr_cv4': tprs[3],
+                    'tpr_cv5': tprs[4],
+                    'Mean TPR': mean_tpr,
+                    'FPR': mean_fpr,
+                    
+                })
+            X = st.session_state.model_results["X"]
+            y = st.session_state.model_results["y"]
+            fig1 = plot_roc_curve(tprs_df)
+            fig2 = plot_lolp(X,y)
+            fig3 = plot_umap(X, y)
+            cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
             cols[0].success('Model trained!')
-
-if st.session_state["train_ml_model_active"]:
-    if "model_results" in st.session_state:
-        aurocs = st.session_state.model_results["aurocs"]
-        std_auroc = np.std(aurocs)
-        cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
-        tprs = []
-        mean_fpr = np.linspace(0,1,100)
-        for i in st.session_state.model_results["cv_data"]:
-            fpr, tpr, _ = metrics.roc_curve(i[0],i[1])
-            interp_tpr = np.interp(mean_fpr, fpr, tpr)
-            interp_tpr[0] = 0.0
-            tprs.append(interp_tpr)
-        mean_tpr = np.mean(tprs, axis=0)
-        mean_tpr[-1] = 1.0
-    tprs_df = pd.DataFrame({
-        'tpr_cv1': tprs[0],
-        'tpr_cv2': tprs[1],
-        'tpr_cv3': tprs[2],
-        'tpr_cv4': tprs[3],
-        'tpr_cv5': tprs[4],
-        'Mean TPR': mean_tpr,
-        'FPR': mean_fpr,
-        
-    })
-
-    base = alt.Chart(tprs_df).transform_fold(
-        ['tpr_cv1', 'tpr_cv2', 'tpr_cv3', 'tpr_cv4', 'tpr_cv5', 'Mean TPR'],
-        as_=['Variable', 'Value']
-    ).mark_line().encode(
-        x=alt.X('FPR:Q', title='False Positive Rate (FPR)'),
-        y=alt.Y('Value:Q', title='True Positive Rate (TPR)'),
-        color=alt.Color('Variable:N', scale=alt.Scale(range= ['#1f77b4']+['#d3d3d3']*5), legend=None),
-    ).properties(
-        title='ROC Curve'
-    )
-
-    cols[1].altair_chart(base, use_container_width=True)
-    
-    X = st.session_state.model_results["X"]
-    y = st.session_state.model_results["y"]
-    X_ = [x[:2] for x in X]
-    LolP1 = [arr[0] for arr in X]
-    LolP2 = [arr[1] for arr in X]
-    lolp_df = pd.DataFrame({
-        'LolP1': LolP1,
-        'LolP2': LolP2,
-        'Binary': y,
-        'Color': ['#0000FF' if x==0 else  '#FF0000'for x in y]
-    })  
-    lolp_df_sorted = lolp_df.sort_values(by='Binary', ascending=True)
-    scatter_plot = alt.Chart(lolp_df_sorted).mark_circle(size=60).encode(
-    x=alt.X('LolP1', title='LolP1'),
-    y=alt.Y('LolP2', title='LolP2'),
-    color=alt.Color('Binary:N', scale=alt.Scale(domain=[0, 1], range=['#0000FF', '#FF0000']), legend=None)
-    ).properties(
-        title='2D Representation of Chemical Space'
-    )
-    cols[2].altair_chart(scatter_plot, use_container_width=True)
+            cols[1].altair_chart(fig1, use_container_width=True)
+            cols[2].altair_chart(fig2, use_container_width=True)
+            cols[3].altair_chart(fig3,use_container_width=True)
+            
 
     q1_header = "Ask yourselves the following questions:"
     st.write(q1_header)
@@ -405,5 +376,10 @@ if st.session_state["train_ml_model_active"]:
                             st.divider()
                             st.header("Synthesis planning")
                             sel_smiles = st.text_input("Enter a SMILES string", value=seed_smiles)
+                            st.info("This platform performs an automated search of Chem-Space to identify in-stock molecules for direct purchasing")
+                            chemspace = ChemSpaceSearch()
+                            data = chemspace.run(sel_smiles)
+                            st.dataframe(data)
+                            
 
 

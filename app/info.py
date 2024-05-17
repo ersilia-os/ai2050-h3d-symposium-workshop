@@ -5,10 +5,16 @@ about = [
     "If you have a more advanced dataset in mind or a use case for your research, please contact us at: [hello@ersilia.io](mailto:hello@ersilia.io)."
 ]
 
-model_urls = {
+model_urls_do = {
     "eos9ei3": "https://eos9ei3-jvhi9.ondigitalocean.app/",
     "eos43at": "https://eos43at-boaoi.ondigitalocean.app/",
 }
+
+model_urls_aws = {
+    "eos9ei3": "http://35.159.128.242/",
+    "eos43at": "http://3.75.227.184//",
+}
+
 
 library_filenames = {
     "Compound library 1": "abaumannii/abaumannii_subset250_0.csv",
