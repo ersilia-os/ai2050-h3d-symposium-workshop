@@ -14,6 +14,7 @@ RUN python -m pip install lolP
 RUN python -m pip install openai
 RUN python -m pip install scikit-learn
 RUN python -m pip install altair
+RUN python -m pip install umap
 
 EXPOSE 8501
 CMD ["streamlit", "run", "app/app.py"]

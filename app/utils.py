@@ -12,13 +12,13 @@ import requests
 import json
 from sklearn.ensemble import RandomForestClassifier
 
-
 root = os.path.dirname(os.path.abspath(__file__))
 
 load_dotenv(os.path.join(root, "..", ".env"))
 
 def filter_valid_smiles(smiles_list):
-    return [smiles for smiles in smiles_list if Chem.MolFromSmiles(smiles) is not None]
+    smiles_list = [smiles for smiles in smiles_list if Chem.MolFromSmiles(smiles) is not None]
+    return [smiles for smiles in smiles_list if smiles != "" and smiles is not None]
 
 def draw_molecule(smiles):
     mol = Chem.MolFromSmiles(smiles)

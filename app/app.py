@@ -7,11 +7,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import altair as alt
 from sklearn import metrics
-import umap
-
 
 from ersilia_client import ErsiliaClient
-
 
 root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(root)
@@ -25,7 +22,7 @@ from info import abaumannii_bioactivity, herg_inhibition, synthetic_accessibilit
 from plots import plot_act_inact, plot_roc_curve, plot_lolp, plot_umap
 from chemspace import ChemSpaceSearch
 
-model_urls=model_urls_aws
+model_urls=model_urls_do
 
 st.set_page_config(layout="wide", page_title='H3D Symposium AI Workshop', page_icon=':microbe:', initial_sidebar_state='collapsed')
 
@@ -54,7 +51,7 @@ DEFAULT_ACINETOBACTER_ANSWER = "Hello! Welcome to the H3D Symposium in Livingsto
 
 initial_question_input = st.text_input("Ask me something about Acinetobacter baumannii", value=DEFAULT_ACINETOBACTER_QUESTION)
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def ask_initial_question(query):
     return ask_question_about_abaumannii(query)
 
@@ -69,7 +66,7 @@ else:
 st.divider()
 st.header("Build a machine learning model")
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_acinetobacter_training_data():
     df = pd.read_csv(os.path.join(data_dir, "training_sets", "eos3804.csv"))
     new_header = df.iloc[0]
@@ -78,6 +75,18 @@ def load_acinetobacter_training_data():
     df.reset_index(drop=True, inplace=True)
     df["Mean"] = pd.to_numeric(df["Mean"])
     return df
+
+@st.cache_data(show_spinner=False)
+def do_plot_roc_curve(tprs_df):
+    return plot_roc_curve(tprs_df)
+
+@st.cache_data(show_spinner=False)
+def do_plot_lolp(X, y):
+    return plot_lolp(X, y)
+
+@st.cache_data(show_spinner=False)
+def do_plot_umap(X, y):
+    return plot_umap(X, y)
 
 # display metrics and slider for activity cut-off
 dt = load_acinetobacter_training_data()
@@ -110,40 +119,40 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
     else:
         with st.spinner("Training the model..."):
             st.session_state.model_results = train_acinetobacter_ml_model(dt)
-            if st.session_state["train_ml_model_active"]:
-                if "model_results" in st.session_state:
-                    aurocs = st.session_state.model_results["aurocs"]
-                    std_auroc = np.std(aurocs)
-                    
-                    tprs = []
-                    mean_fpr = np.linspace(0,1,100)
-                    for i in st.session_state.model_results["cv_data"]:
-                        fpr, tpr, _ = metrics.roc_curve(i[0],i[1])
-                        interp_tpr = np.interp(mean_fpr, fpr, tpr)
-                        interp_tpr[0] = 0.0
-                        tprs.append(interp_tpr)
-                    mean_tpr = np.mean(tprs, axis=0)
-                    mean_tpr[-1] = 1.0
-                tprs_df = pd.DataFrame({
-                    'tpr_cv1': tprs[0],
-                    'tpr_cv2': tprs[1],
-                    'tpr_cv3': tprs[2],
-                    'tpr_cv4': tprs[3],
-                    'tpr_cv5': tprs[4],
-                    'Mean TPR': mean_tpr,
-                    'FPR': mean_fpr,
-                    
-                })
-            X = st.session_state.model_results["X"]
-            y = st.session_state.model_results["y"]
-            fig1 = plot_roc_curve(tprs_df)
-            fig2 = plot_lolp(X,y)
-            fig3 = plot_umap(X, y)
-            cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
-            cols[0].success('Model trained!')
-            cols[1].altair_chart(fig1, use_container_width=True)
-            cols[2].altair_chart(fig2, use_container_width=True)
-            cols[3].altair_chart(fig3,use_container_width=True)
+if st.session_state["train_ml_model_active"]:
+    if "model_results" in st.session_state:
+        aurocs = st.session_state.model_results["aurocs"]
+        std_auroc = np.std(aurocs)
+        
+        tprs = []
+        mean_fpr = np.linspace(0,1,100)
+        for i in st.session_state.model_results["cv_data"]:
+            fpr, tpr, _ = metrics.roc_curve(i[0],i[1])
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            interp_tpr[0] = 0.0
+            tprs.append(interp_tpr)
+        mean_tpr = np.mean(tprs, axis=0)
+        mean_tpr[-1] = 1.0
+    tprs_df = pd.DataFrame({
+        'tpr_cv1': tprs[0],
+        'tpr_cv2': tprs[1],
+        'tpr_cv3': tprs[2],
+        'tpr_cv4': tprs[3],
+        'tpr_cv5': tprs[4],
+        'Mean TPR': mean_tpr,
+        'FPR': mean_fpr,
+        
+    })
+    X = st.session_state.model_results["X"]
+    y = st.session_state.model_results["y"]
+    fig1 = do_plot_roc_curve(tprs_df)
+    fig2 = do_plot_lolp(X, y)
+    fig3 = do_plot_umap(X, y)
+    cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
+    cols[0].success('Model trained!')
+    cols[1].altair_chart(fig1, use_container_width=True)
+    cols[2].altair_chart(fig2, use_container_width=True)
+    cols[3].altair_chart(fig3,use_container_width=True)
             
 
     q1_header = "Ask yourselves the following questions:"
@@ -152,6 +161,7 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
     st.info(q_comb)
     q1_closing = "Once you have decided the best cut-off and trained the model, click below to proceed:"
     st.write(q1_closing)
+
 # button to save final model with right cut-off and proceed
     if 'final_model' not in st.session_state:
         st.session_state['final_model'] = False
@@ -165,7 +175,6 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
     if st.session_state["final_model"]:
         st.divider()
         st.header("Library selection")
-
         cols = st.columns(5)
         selected_library = cols[0].radio("Select a screening library", list(library_filenames.keys()))
         smiles_list = read_library(library_filenames[selected_library])
@@ -225,7 +234,7 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
             cols[2].markdown(synthetic_accessibility, unsafe_allow_html=True)
             st.write("")
 
-            @st.cache_data
+            @st.cache_data(show_spinner=False)
             def run_predictive_models(model_ids, smiles_list):
                 results = {}
                 for  model_id in model_ids:
@@ -242,47 +251,47 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
             st.write(q2_header)
             q_comb = '  \n'.join(q2)
             st.info(q_comb)
-            dp = None
 
 # button to run predictions
             if 'model_predictions_active' not in st.session_state:
+                st.session_state.dp = None
                 st.session_state['model_predictions_active'] = False
             def toggle_model_predictions_state():
                 st.session_state['model_predictions_active'] = not st.session_state['model_predictions_active']
             if st.button(":rocket: Run predictions!", on_click=toggle_model_predictions_state):
                 if not st.session_state["model_predictions_active"]:
                     pass
-
-            if st.session_state["model_predictions_active"]: 
-                with st.spinner("Running models..."):
-                    dp = run_predictive_models(["eos9ei3", "eos43at"], smiles_list)
-                    output_cols = {"outcome":"SA Score", "pic50": "hERG"}
-                    dp.rename(columns=output_cols, inplace=True)
-                    red = st.session_state.model_results["reducer"]
-                    mdl = st.session_state.model_results["model"]
-                    abau_preds = predict_acinetobacter_ml_model(smiles_list, red, mdl)
-                    dp["Abaumannii"] = abau_preds
-                    
+                else:
+                    with st.spinner("Running models..."):
+                        dp = run_predictive_models(["eos9ei3", "eos43at"], smiles_list)
+                        output_cols = {"outcome":"SA Score", "pic50": "hERG"}
+                        dp.rename(columns=output_cols, inplace=True)
+                        red = st.session_state.model_results["reducer"]
+                        mdl = st.session_state.model_results["model"]
+                        abau_preds = predict_acinetobacter_ml_model(smiles_list, red, mdl)
+                        dp["Abaumannii"] = abau_preds
+                        st.session_state.dp = dp
 
             cols = st.columns(2)
             start_hit_expansion = False
 
-            if dp is not None:
+            if st.session_state.dp is not None:
+                dp =st.session_state.dp
                 cols[0].dataframe(dp)
-                model_column = cols[1].selectbox("Select Model Column", ["SA Score", "hERG", "Abaumannii"])
-                # Plot the selected model column in a histogram
-                hist_data = pd.DataFrame({model_column: dp[model_column]})
-                # Plot the histogram
-                chart = alt.Chart(hist_data).mark_bar(color="#1D6996").encode(
-                    alt.X(model_column, bin=alt.Bin(maxbins=30), axis=alt.Axis(title=f'{model_column} prediction')),
-                    y=alt.Y('count()', axis=alt.Axis(title='Counts'))
-                ).properties(
-                    title=f'Histogram of {model_column} predictions'
-                )
-                cols[1].altair_chart(chart, use_container_width=True)
-
-
-
+                if len(dp)<50:
+                    cols[1].error("Make predictions for more than 50 molecules to obtain a plot.")
+                else:
+                    model_column = cols[1].selectbox("Select Model Column", ["SA Score", "hERG", "Abaumannii"])
+                    # Plot the selected model column in a histogram
+                    hist_data = pd.DataFrame({model_column: dp[model_column]})
+                    # Plot the histogram
+                    chart = alt.Chart(hist_data).mark_bar(color="#1D6996").encode(
+                        alt.X(model_column, bin=alt.Bin(maxbins=30), axis=alt.Axis(title=f'{model_column} prediction')),
+                        y=alt.Y('count()', axis=alt.Axis(title='Counts'))
+                    ).properties(
+                        title=f'Histogram of {model_column} predictions'
+                    )
+                    cols[1].altair_chart(chart, use_container_width=True)
 
 # Section 5: Hit Expansion
                 if 'hit_expansion_active' not in st.session_state:
@@ -307,7 +316,7 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
                     num_molecules = cols[2].slider("Number of molecules", min_value=1, max_value=100, value=30)
                     minimum_similarity = cols[2].slider("Minimum similarity", min_value=0.0, max_value=1.0, value=0.85)
                     
-                    @st.cache_data
+                    @st.cache_data(show_spinner=False)
                     def run_generative_models(seed_smiles, opt_property, num_molecules, minimize, minimum_similarity):
                         return sorted([(random.choice(smiles_list), random.randint(0,100)/100) for _ in range(num_molecules)], key=lambda x: x[1], reverse=minimize)
                         #return query_nvidia_generative_chemistry(smiles=seed_smiles, property=opt_property, minimize=minimize, num_molecules=num_molecules, minimum_similarity=minimum_similarity)
@@ -369,17 +378,20 @@ if cols[0].button('🤖 Train a machine learning model!', on_click=toggle_train_
                             st.session_state['synthesis_planning'] = False
                         def toggle_hit_expansion_state():
                             st.session_state['synthesis_planning'] = not st.session_state['synthesis_planning']
-                        if st.button("♻️ Proceed to synthesis planning", on_click=toggle_hit_expansion_state):
+                        if st.button("♻️ Proceed to molecule purchasing", on_click=toggle_hit_expansion_state):
                             if not st.session_state["synthesis_planning"]:
                                 pass
                         if st.session_state["synthesis_planning"]:
                             st.divider()
-                            st.header("Synthesis planning")
-                            sel_smiles = st.text_input("Enter a SMILES string", value=seed_smiles)
-                            st.info("This platform performs an automated search of Chem-Space to identify in-stock molecules for direct purchasing")
+                            st.header("Purchase molecule")
+                            cols = st.columns([2,1])
+                            sel_smiles = cols[0].text_input("Enter a SMILES string", value=seed_smiles)
+                            cols[1].text("Candidate molecule")
+                            cols[1].image(draw_molecule(sel_smiles))
+                            cols[0].info("This tool performs an automated search of Chem-Space to identify in-stock molecules for direct purchasing")
                             chemspace = ChemSpaceSearch()
                             data = chemspace.run(sel_smiles)
-                            st.dataframe(data)
+                            cols[0].dataframe(data)
                             
 
 

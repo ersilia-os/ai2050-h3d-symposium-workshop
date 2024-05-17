@@ -24,27 +24,26 @@ library_filenames = {
 }
 
 q1 = [
-    "What is the experimental assay measuring?",
-    "Are we training a classification or regression model with this data?",
-    "What is the author's defined activity cut-off?",
-    "What have we chosen as a cut-off for activity against A. baumannii?",
-    "Is it a balanced dataset? Why or why not?",
-    "What is the performance of the models at different cut-offs?",
-    "How does our quick modelling compare to the author's work?"
+    "- What is the experimental assay measuring?",
+    "- Are we training a classification or regression model with this data?",
+    "- What is the author's defined activity cut-off?",
+    "- What have we chosen as a cut-off for activity against A. baumannii?",
+    "- Is it a balanced dataset? Why or why not?",
+    "- What is the performance of the models at different cut-offs?",
+    "- How does our quick modelling compare to the author's work?"
 ]
 
 q2 = [
-    "What type of model is it?",
-    "What type of output does the model produce?",
-    "What is a good threshold for keeping molecules?"
+    "- What type of model is it?",
+    "- What type of output does the model produce?",
+    "- What is a good threshold for keeping molecules?"
 ]
 
 q3 = [
-    "Are there new chemical structures in the generated candidates?",
-    "Do the generated candidates present better predicted biochemical profiles?",
-    "What would your next steps be?"
+    "- Are there new chemical structures in the generated candidates?",
+    "- Do the generated candidates present better predicted biochemical profiles?",
+    "- What would your next steps be?"
 ]
-# info.py
 
 # Markdown content for A. baumannii Bioactivity section
 abaumannii_bioactivity = """
