@@ -4,6 +4,10 @@ WORKDIR .
 
 COPY . .
 
+ENV OPENAI_API_KEY=placeholder_text
+ENV NVIDIA_API_KEY=placeholder_text
+ENV CHEMSPACE_API_KEY=placeholder_text
+
 RUN python -m pip install --upgrade pip
 RUN python -m pip install rdkit
 RUN python -m pip install streamlit
