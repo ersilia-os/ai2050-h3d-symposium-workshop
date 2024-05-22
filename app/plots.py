@@ -48,7 +48,7 @@ def plot_lolp(X,y):
     y=alt.Y('LolP2', title='LolP2'),
     color=alt.Color('Binary:N', scale=alt.Scale(domain=[0, 1], range=['#0000FF', '#FF0000']), legend=None)
     ).properties(
-        title='2D Representation of Chemical Space'
+        title='2D Chemical Space (1)'
     ).configure_title(
         anchor='middle'
     ).interactive()
@@ -70,7 +70,7 @@ def plot_lolp_2(X,y):
     y=alt.Y('LolP4', title='LolP4'),
     color=alt.Color('Binary:N', scale=alt.Scale(domain=[0, 1], range=['#0000FF', '#FF0000']), legend=None)
     ).properties(
-        title='2D Representation of Chemical Space (2)'
+        title='2D Chemical Space (2)'
     ).configure_title(
         anchor='middle'
     ).interactive()
