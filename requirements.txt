@@ -7,3 +7,4 @@ lolP
 openai
 scikit-learn
 altair
+umap-learn
