@@ -237,6 +237,7 @@ if st.session_state["train_ml_model_active"]:
             def run_predictive_models(model_ids, smiles_list):
                 results = {}
                 for  model_id in model_ids:
+                    st.toast("Running Ersilia model {0}".format(model_id))
                     client = clients[model_id]
                     result = client.run(smiles_list)
                     results[model_id] = result
@@ -267,6 +268,7 @@ if st.session_state["train_ml_model_active"]:
                         dp.rename(columns=output_cols, inplace=True)
                         red = st.session_state.model_results["reducer"]
                         mdl = st.session_state.model_results["model"]
+                        st.toast("Running the Acinetobacter model")
                         abau_preds = predict_acinetobacter_ml_model(smiles_list, red, mdl)
                         dp["Abaumannii"] = abau_preds
                         st.session_state.dp = dp

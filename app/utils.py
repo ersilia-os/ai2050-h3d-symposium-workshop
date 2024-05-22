@@ -90,18 +90,21 @@ def binarize_acinetobacter_data(data, cutoff):
     data["Binary"] = y
     return data
 
-
+import streamlit as st
 def train_acinetobacter_ml_model(binary_data):
+    st.toast("Calculating compound embeddings")
     embedder = ErsiliaCompoundEmbeddings()
     print("Calculating embeddings")
     X = embedder.transform(binary_data["SMILES"])
     print("Embeddings calculated")
     y = np.array(binary_data["Binary"])
     reducer = LOL(100)
-    model = RandomForestClassifier()
+    model = RandomForestClassifier(n_jobs=-1)
     aurocs = []
     cv_data = []
+    st.toast("Setting up dimensionality reduction and ML model")
     for i in range(5):
+        st.toast("CV iteration {0}".format(i+1))
         print("CV iteration", i)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         X_train = reducer.fit_transform(X_train, y_train)
@@ -110,6 +113,7 @@ def train_acinetobacter_ml_model(binary_data):
         y_pred = model.predict_proba(X_test)[:,1]
         aurocs += [roc_auc_score(y_test, y_pred)]
         cv_data += [(y_test, y_pred)]
+    st.toast("Fitting the final model")
     print("Fitting final model")
     X = reducer.fit_transform(X, y)
     model.fit(X, y)
