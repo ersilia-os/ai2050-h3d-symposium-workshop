@@ -54,6 +54,27 @@ def plot_lolp(X,y):
     ).interactive()
     return fig
 
+def plot_lolp_2(X,y):
+    X_ = [x[2:4] for x in X]
+    LolP3 = [arr[0] for arr in X_]
+    LolP4 = [arr[1] for arr in X_]
+    lolp_df = pd.DataFrame({
+        'LolP3': LolP3,
+        'LolP4': LolP4,
+        'Binary': y,
+        'Color': ['#0000FF' if x==0 else  '#FF0000'for x in y]
+    })  
+    lolp_df_sorted = lolp_df.sort_values(by='Binary', ascending=True)
+    fig = alt.Chart(lolp_df_sorted).mark_circle(size=60).encode(
+    x=alt.X('LolP3', title='LolP3'),
+    y=alt.Y('LolP4', title='LolP4'),
+    color=alt.Color('Binary:N', scale=alt.Scale(domain=[0, 1], range=['#0000FF', '#FF0000']), legend=None)
+    ).properties(
+        title='2D Representation of Chemical Space (2)'
+    ).configure_title(
+        anchor='middle'
+    ).interactive()
+    return fig
 
 def plot_umap(X, y):
     y = np.array(y)

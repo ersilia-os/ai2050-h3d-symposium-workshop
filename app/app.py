@@ -18,7 +18,7 @@ from utils import query_nvidia_generative_chemistry, ask_question_about_abaumann
 from utils import binarize_acinetobacter_data, train_acinetobacter_ml_model, predict_acinetobacter_ml_model
 from info import about, model_urls_do, model_urls_aws, library_filenames, q1, q2, q3
 from info import abaumannii_bioactivity, herg_inhibition, synthetic_accessibility
-from plots import plot_act_inact, plot_roc_curve, plot_lolp, plot_umap
+from plots import plot_act_inact, plot_roc_curve, plot_lolp, plot_umap, plot_lolp_2
 from chemspace import ChemSpaceSearch
 
 model_urls=model_urls_do
@@ -84,6 +84,10 @@ def do_plot_lolp(X, y):
     return plot_lolp(X, y)
 
 @st.cache_data(show_spinner=False)
+def do_plot_lolp_2(X, y):
+    return plot_lolp_2(X, y)
+
+@st.cache_data(show_spinner=False)
 def do_plot_umap(X, y):
     return plot_umap(X, y)
 
@@ -146,7 +150,8 @@ if st.session_state["train_ml_model_active"]:
     y = st.session_state.model_results["y"]
     fig1 = do_plot_roc_curve(tprs_df)
     fig2 = do_plot_lolp(X, y)
-    fig3 = do_plot_umap(X, y)
+    fig3 = do_plot_lolp_2(X, y)
+    #fig3 = do_plot_umap(X, y)
     cols[0].metric("AUROC ± Std", f"{np.mean(aurocs):.3f} ± {std_auroc:.3f}")
     cols[0].success('Model trained!')
     cols[1].altair_chart(fig1, use_container_width=True)
@@ -233,7 +238,6 @@ if st.session_state["train_ml_model_active"]:
             cols[2].markdown(synthetic_accessibility, unsafe_allow_html=True)
             st.write("")
 
-            st.toast("Running Ersilia models")
             @st.cache_data(show_spinner=False)
             def run_predictive_models(model_ids, smiles_list):
                 results = {}
