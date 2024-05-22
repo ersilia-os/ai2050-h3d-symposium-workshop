@@ -2,7 +2,6 @@ import pandas as pd
 import umap
 import altair as alt
 import numpy as np
-import streamlit as st
 
 def plot_act_inact(df): 
     #needs a datagrame with Molecule index, Mean value and Binary
@@ -57,7 +56,6 @@ def plot_lolp(X,y):
 
 
 def plot_umap(X, y):
-    st.toast("Calculating 2D UMAP projection")
     y = np.array(y)
     reducer = umap.UMAP(n_components=2, n_jobs=-1)
     X_embedded = reducer.fit_transform(X, y)

@@ -233,11 +233,11 @@ if st.session_state["train_ml_model_active"]:
             cols[2].markdown(synthetic_accessibility, unsafe_allow_html=True)
             st.write("")
 
+            st.toast("Running Ersilia models")
             @st.cache_data(show_spinner=False)
             def run_predictive_models(model_ids, smiles_list):
                 results = {}
                 for  model_id in model_ids:
-                    st.toast("Running Ersilia model {0}".format(model_id))
                     client = clients[model_id]
                     result = client.run(smiles_list)
                     results[model_id] = result
