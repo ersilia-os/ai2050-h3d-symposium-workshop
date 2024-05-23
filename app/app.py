@@ -283,7 +283,11 @@ if st.session_state["train_ml_model_active"]:
                 else:
                     with st.spinner("Running models..."):
                         dp = run_predictive_models(["eos9ei3", "eos43at"], smiles_list)
-                        output_cols = {"sa_score":"SA Score", "pic50": "hERG"}
+                        _columns = set(list(dp.columns))
+                        if "sa_score" in _columns:
+                            output_cols = {"sa_score":"SA Score", "pic50": "hERG"}
+                        if "outcome" in _columns:
+                            output_cols = {"outcome":"SA Score", "pic50": "hERG"}
                         dp.rename(columns=output_cols, inplace=True)
                         red = st.session_state.model_results["reducer"]
                         mdl = st.session_state.model_results["model"]
