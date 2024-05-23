@@ -8,13 +8,13 @@ about = [
 model_urls = {
     "eos9ei3": ["https://eos9ei3-jvhi9.ondigitalocean.app/",
                 "https://eos9ei3-2-yml5d.ondigitalocean.app/",
-                "https://eos9ei3-3-figt3.ondigitalocean.app/",
-                "http://35.159.128.242/"],
+                "https://eos9ei3-3-figt3.ondigitalocean.app/"
+                ],
                 
     "eos43at": ["https://eos43at-boaoi.ondigitalocean.app/",
                 "https://oyster-app-p5b7w.ondigitalocean.app/",
-                "https://eos43at-3-tleva.ondigitalocean.app/",
-                "http://3.75.227.184/"]
+                "https://eos43at-3-tleva.ondigitalocean.app/"
+                ]
 }
 
 
