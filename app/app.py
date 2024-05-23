@@ -16,14 +16,28 @@ data_dir = os.path.abspath(os.path.join(root, "..", "data"))
 from utils import filter_valid_smiles, draw_molecule
 from utils import query_nvidia_generative_chemistry, ask_question_about_abaumannii
 from utils import binarize_acinetobacter_data, train_acinetobacter_ml_model, predict_acinetobacter_ml_model
-from info import about, model_urls_do, model_urls_aws, library_filenames, q1, q2, q3
+from info import about, library_filenames, q1, q2, q3
+from info import model_urls as model_urls_list
 from info import abaumannii_bioactivity, herg_inhibition, synthetic_accessibility
 from plots import plot_act_inact, plot_roc_curve, plot_lolp, plot_umap, plot_lolp_2
 from chemspace import ChemSpaceSearch
 
-model_urls=model_urls_do
 
 st.set_page_config(layout="wide", page_title='H3D Symposium AI Workshop', page_icon=':microbe:', initial_sidebar_state='collapsed')
+
+if "random_seed" not in st.session_state:
+    st.session_state.random_seed = random.randint(0, 10000)
+
+@st.cache_data
+def sample_model_urls():
+    random.seed(st.session_state.random_seed)
+    model_urls = {
+        "eos9ei3": random.choice(model_urls_list["eos9ei3"]),
+        "eos43at": random.choice(model_urls_list["eos43at"])
+    }
+    return model_urls
+
+model_urls = sample_model_urls()
 
 @st.cache_resource
 def get_client(model_id):
@@ -42,6 +56,7 @@ for i in range(4):
     
 # MAIN
 st.title(":microbe: H3D Symposium - AI for Antimicrobial Drug Discovery Workshop :pill:")
+
 
 # Section 1: Open AI question
 
@@ -323,8 +338,8 @@ if st.session_state["train_ml_model_active"]:
                     
                     @st.cache_data(show_spinner=False)
                     def run_generative_models(seed_smiles, opt_property, num_molecules, minimize, minimum_similarity):
-                        return sorted([(random.choice(smiles_list), random.randint(0,100)/100) for _ in range(num_molecules)], key=lambda x: x[1], reverse=minimize)
-                        #return query_nvidia_generative_chemistry(smiles=seed_smiles, property=opt_property, minimize=minimize, num_molecules=num_molecules, minimum_similarity=minimum_similarity)
+                        #return sorted([(random.choice(smiles_list), random.randint(0,100)/100) for _ in range(num_molecules)], key=lambda x: x[1], reverse=minimize)
+                        return query_nvidia_generative_chemistry(smiles=seed_smiles, property=opt_property, minimize=minimize, num_molecules=num_molecules, minimum_similarity=minimum_similarity)
 
                     # Button to generate new molecules
                     if 'generate_molecules_active' not in st.session_state:

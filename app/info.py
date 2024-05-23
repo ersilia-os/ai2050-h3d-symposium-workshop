@@ -5,14 +5,16 @@ about = [
     "If you have a more advanced dataset in mind or a use case for your research, please contact us at: [hello@ersilia.io](mailto:hello@ersilia.io)."
 ]
 
-model_urls_do = {
-    "eos9ei3": "https://eos9ei3-jvhi9.ondigitalocean.app/",
-    "eos43at": "https://eos43at-boaoi.ondigitalocean.app/",
-}
-
-model_urls_aws = {
-    "eos9ei3": "http://35.159.128.242/",
-    "eos43at": "http://3.75.227.184//",
+model_urls = {
+    "eos9ei3": ["https://eos9ei3-jvhi9.ondigitalocean.app/",
+                "https://eos9ei3-2-yml5d.ondigitalocean.app/",
+                "https://eos9ei3-3-figt3.ondigitalocean.app/",
+                "http://35.159.128.242/"],
+                
+    "eos43at": ["https://eos43at-boaoi.ondigitalocean.app/",
+                "https://oyster-app-p5b7w.ondigitalocean.app/",
+                "https://eos43at-3-tleva.ondigitalocean.app/",
+                "http://3.75.227.184/"]
 }
 
 
